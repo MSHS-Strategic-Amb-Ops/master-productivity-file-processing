@@ -308,21 +308,85 @@ not_any_na <- function(x) all(!is.na(x))
 # Import Dummy Data ------------------------------------------------------------
 path <- "C:/Users/kweons01/Desktop/Strategic Initiatives - So Youn/Github/cfte-dashboard/"
 
-cpsc_data <- read_excel(paste0(path, "cpsc_data_sample_clean.xlsx"))
+cpsc_data <- read_excel(paste0(path, "cpsc_data_sample.xlsx"))
 benchmark_data <- read_excel(paste0(path, "cpsc_benchmarks_sample.xlsx"))
-collections_data <- read_excel(paste0(path, "collections_data_sample_clean.xlsx"))
+collections_data <- read_excel(paste0(path, "collections_data_sample.xlsx"))
 
 colnames(cpsc_data) <- str_trim(colnames(cpsc_data))
 
 colnames(collections_data) <- str_trim(colnames(collections_data))
 
+benchmark_data <- benchmark_data %>%
+  mutate(`Year Key` = as.character(`Year Key`))
 
 # Add Total Payments to CPSC Data 
 cpsc_data <- left_join(cpsc_data, 
                    collections_data[,c("Department","Specialty","PROVIDER","NPI","Month","Total Payments")])
 
+cpsc_data <- cpsc_data %>%
+  mutate(Year = format(as.Date(Month), "%Y"), .after = Month) 
+
 # cpsc_data <- cpsc_data %>%
 #   filter(Department != "UNKNWON DEPT")
+
+
+```
+
+
+```{r Data Import New, echo = FALSE, warning = FALSE, message = FALSE}
+
+# Database Connection ----------------------------------------------------------
+# Connection to Oracle DB ------------------------------------------------------
+conn1 <- dbPool(drv = odbc(), dsn = "OAO Cloud DB SoYoun", timeout = 30)
+conn2 <- dbConnect(odbc(), 
+                   "Clarity_prod", 
+                   uid = "kweons01" , 
+                   pwd = "kweons01123$")
+
+# Connection to Clarity Tables -------------------------------------------------
+clarity_ser_tbl <- tbl(conn2, "CLARITY_SER") # Physician Titles
+repo_master_tbl <-  tbl(conn1, in_schema("KWEONS01", "REPO_MASTER_PHYSICIAN_DATA"))
+
+cpsc_tbl <-  tbl(conn1, in_schema("KWEONS01", "CPSC_DATA"))
+collections_tbl <-  tbl(conn1, in_schema("KWEONS01", "COLLECTIONS_DATA"))
+benchmark_tbl <-  tbl(conn1, in_schema("KWEONS01", "CPSC_BENCHMARK_DATA"))
+
+
+# Data Column Names ------------------------------------------------------------
+col_names_cpsc_data <- c("Department", "Specialty", "PROVIDER", "NPI", "Month",
+                         "Charges", "Work RVUs", "Benchmark", "Imputed CFTE", 
+                         "Reported CFTE", "Imputed: Reported", "FTE RVUs")
+
+
+col_names_collections_data <- c("Department", "Specialty", "PROVIDER", "NPI", "Month", "Total Payments")
+
+
+# Import Data ------------------------------------------------------------------
+# wRVUs Data
+cpsc_data <- cpsc_tbl %>%
+  collect()
+colnames(cpsc_data) <- col_names_cpsc_data
+
+# Benchmark Data 
+benchmark_data <- benchmark_tbl %>%
+  collect() %>%
+  rename(`Year Key` = YEAR_KEY,
+         `Specialty Code` = SPECIALTY_CODE,
+         `Specialty Description` = SPECIALTY_DESCRIPTION) %>%
+  mutate(`Year Key` = as.character(format(as.Date(`Year Key`), "%Y")))
+
+# Collections Data 
+collections_data <- collections_tbl %>%
+  dplyr::select(DEPARTMENT, SPECIALTY, PROVIDER, NPI, MONTH, TOTAL_PAYMENTS) %>%
+  collect()
+colnames(collections_data) <- col_names_collections_data
+  
+
+# Add Total Payments to CPSC Data ---------------------------------------------- 
+cpsc_data <- left_join(cpsc_data, collections_data)
+
+cpsc_data <- cpsc_data %>%
+  mutate(Year = format(as.Date(Month), "%Y"), .after = Month) 
 
 
 ```
@@ -461,16 +525,28 @@ ytd_output <- cpsc_data_master %>%
               values_from = WRVUs_ytd:payments_ytd_variance_perc) 
 ytd_output <- janitor::remove_empty(ytd_output, which = "cols")
 
+
 ytd_productivity_output <- cpsc_data_master %>% 
   arrange(year_month) %>%
+  filter(Month == format(as.Date(paste0(max(cpsc_data_master$year_month),"-01")),"%m")) %>%
   group_by(PROVIDER, NPI, Specialty, Year) %>%
-  summarise(payments_per_WRVU_ytd = payments_per_WRVU_ytd[which.max(Month)],
-            productivity_ytd = productivity_ytd[which.max(Month)]) %>%
+  summarise(productivity_ytd = productivity_ytd[which.max(Month)]) %>%
   group_by(PROVIDER, NPI, Specialty) %>%
   pivot_wider(names_from = Year,
-              values_from = payments_per_WRVU_ytd:productivity_ytd) 
+              values_from = productivity_ytd) 
+
+yearly_productivity_output <- cpsc_data_master %>% 
+  arrange(year_month) %>%
+  group_by(PROVIDER, NPI, Specialty, Year) %>%
+  summarise(productivity_ytd = productivity_ytd[which.max(Month)],
+            payments_per_WRVU_ytd = payments_per_WRVU_ytd[which.max(Month)]
+            ) %>%
+  group_by(PROVIDER, NPI, Specialty) %>%
+  pivot_wider(names_from = Year,
+              values_from = productivity_ytd:payments_per_WRVU_ytd) 
 
 ytd_output <- left_join(ytd_output, ytd_productivity_output)
+ytd_output <- left_join(ytd_output, yearly_productivity_output)
 
 colnames(ytd_output) <- c("PROVIDER", "NPI", "Specialty", 
                           paste0("wRVUs ", year_col_names), 
@@ -480,8 +556,9 @@ colnames(ytd_output) <- c("PROVIDER", "NPI", "Specialty",
                           paste0("wRVUs Percent Change ", year_col_names[length(year_col_names)]),
                           paste0("Collections Variance ", year_col_names[length(year_col_names)]),
                           paste0("Collections Percent Change ", year_col_names[length(year_col_names)]),
-                          paste0(year_col_names, " $ per wRVU"),
-                          paste0(year_col_names, " Productivity"))
+                          paste0(year_col_names, paste0(" ",format(as.Date(paste0(max(cpsc_data_master$year_month),"-01")),"%b"), " YTD Productivity")),
+                          paste0(year_col_names, " Productivity"),
+                          paste0(year_col_names, " $ per wRVU"))
 
 productivity_output <- left_join(month_output, ytd_output)
 productivity_output <- productivity_output %>%
@@ -496,12 +573,27 @@ productivity_output <- productivity_output %>%
 ```
 
 
+```{r Map Additional Provider Detail, echo = FALSE, warning = FALSE, message = FALSE}
+
+productivity_output <- productivity_output %>%
+  mutate(`Master Dept` = "", .before = PROVIDER) %>%
+  mutate(Site = "", .after = `Master Dept`) %>%
+  mutate(`Hire Date` = "", .after = Specialty) 
 
 
+provider_detail_mapping <- repo_master_tbl %>%
+  filter(MONTH == max(MONTH)) %>%
+  dplyr::select(PROVIDER, NPI, MASTERDEPT, SITE, HIREDATE) %>%
+  distinct() %>%
+  collect() %>%
+  mutate(HIREDATE = as.Date(HIREDATE, origin = "1900-01-01"))
 
 
+productivity_output$`Master Dept` <- provider_detail_mapping$MASTERDEPT[match(productivity_output$NPI, provider_detail_mapping$NPI)]
+productivity_output$Site <- provider_detail_mapping$SITE[match(productivity_output$NPI, provider_detail_mapping$NPI)]
+productivity_output$`Hire Date` <- provider_detail_mapping$HIREDATE[match(productivity_output$NPI, provider_detail_mapping$NPI)]
 
-
+```
 
 
 ```{r Excel Export, echo = FALSE, warning = FALSE, message = FALSE}
@@ -545,67 +637,94 @@ dollar_format = createStyle(numFmt="$#,##0.00")
 percent_format = createStyle(numFmt="%#,##0")
 
 
+
+
 ### Data Output 
 writeDataTable(wb, 1, productivity_output, startRow = 3, startCol = 1, tableStyle = "None")
 
-addStyle(wb, 1, provStyle, rows = 3, cols = 1:3)
+addStyle(wb, 1, provStyle, rows = 3, cols = 1:6)
 
 #### Monthly Data Section
-addStyle(wb, 1, wRVUsStyle, rows = 3, cols = 4:(3+length(month_col_names)))
-addStyle(wb, 1, number_format, rows = 4:(3+nrow(productivity_output)), cols = 4:(3+length(month_col_names)), gridExpand = TRUE)
+addStyle(wb, 1, wRVUsStyle, rows = 3, cols = 7:(3+length(month_col_names)))
+addStyle(wb, 1, number_format, rows = 4:(3+nrow(productivity_output)), cols = 7:(6+length(month_col_names)), gridExpand = TRUE)
 
-addStyle(wb, 1, collectionsStyle, rows = 3, cols = (4+length(month_col_names)):(3+(length(month_col_names)*2)))
-addStyle(wb, 1, dollar_format, rows = 4:(3+nrow(productivity_output)), cols = (4+length(month_col_names)):(3+(length(month_col_names)*2)), gridExpand = TRUE)
+addStyle(wb, 1, collectionsStyle, rows = 3, cols = (7+length(month_col_names)):(6+(length(month_col_names)*2)))
+addStyle(wb, 1, dollar_format, rows = 4:(3+nrow(productivity_output)), cols = (7+length(month_col_names)):(6+(length(month_col_names)*2)), gridExpand = TRUE)
 
-addStyle(wb, 1, cfteStyle, rows = 3, cols = (4+(length(month_col_names)*2)):(3+(length(month_col_names)*3)))
-addStyle(wb, 1, decimal_format, rows = 4:(3+nrow(productivity_output)), cols = (4+(length(month_col_names)*2)):(3+(length(month_col_names)*3)), gridExpand = TRUE)
+addStyle(wb, 1, cfteStyle, rows = 3, cols = (7+(length(month_col_names)*2)):(6+(length(month_col_names)*3)))
+addStyle(wb, 1, decimal_format, rows = 4:(3+nrow(productivity_output)), cols = (7+(length(month_col_names)*2)):(6+(length(month_col_names)*3)), gridExpand = TRUE)
 
-addStyle(wb, 1, productivityStyle, rows = 3, cols = (4+(length(month_col_names)*3)):(3+(length(month_col_names)*4)))
+addStyle(wb, 1, productivityStyle, rows = 3, cols = (7+(length(month_col_names)*3)):(6+(length(month_col_names)*4)))
 
 #### Yearly Data Section
-addStyle(wb, 1, wRVUsStyle, rows = 3, cols = (4+(length(month_col_names)*4)):(3+(length(month_col_names)*4)+(length(year_col_names))))
-addStyle(wb, 1, number_format, rows = 4:(3+nrow(productivity_output)), cols = (4+(length(month_col_names)*4)):(3+(length(month_col_names)*4)+(length(year_col_names))), gridExpand = TRUE)
+addStyle(wb, 1, wRVUsStyle, rows = 3, cols = (7+(length(month_col_names)*4)):(6+(length(month_col_names)*4)+(length(year_col_names))))
+addStyle(wb, 1, number_format, rows = 4:(3+nrow(productivity_output)), cols = (7+(length(month_col_names)*4)):(6+(length(month_col_names)*4)+(length(year_col_names))), gridExpand = TRUE)
 
-addStyle(wb, 1, collectionsStyle, rows = 3, cols = (4+(length(month_col_names)*4)+(length(year_col_names))):(3+(length(month_col_names)*4)+(length(year_col_names)*2)))
-addStyle(wb, 1, dollar_format, rows = 4:(3+nrow(productivity_output)), cols = (4+(length(month_col_names)*4)+(length(year_col_names))):(3+(length(month_col_names)*4)+(length(year_col_names)*2)), gridExpand = TRUE)
+addStyle(wb, 1, collectionsStyle, rows = 3, cols = (7+(length(month_col_names)*4)+(length(year_col_names))):(6+(length(month_col_names)*4)+(length(year_col_names)*2)))
+addStyle(wb, 1, dollar_format, rows = 4:(3+nrow(productivity_output)), 
+         cols = (7+(length(month_col_names)*4)+(length(year_col_names))):(6+(length(month_col_names)*4)+(length(year_col_names)*2)), gridExpand = TRUE)
 
-addStyle(wb, 1, cfteStyle, rows = 3, cols = (4+(length(month_col_names)*4)+(length(year_col_names))*2):(3+(length(month_col_names)*4)+(length(year_col_names)*3)))
-addStyle(wb, 1, decimal_format, rows = 4:(3+nrow(productivity_output)), cols = (4+(length(month_col_names)*4)+(length(year_col_names))*2):(3+(length(month_col_names)*4)+(length(year_col_names)*3)), gridExpand = TRUE)
+addStyle(wb, 1, cfteStyle, rows = 3, cols = (7+(length(month_col_names)*4)+(length(year_col_names))*2):(6+(length(month_col_names)*4)+(length(year_col_names)*3)))
+addStyle(wb, 1, decimal_format, rows = 4:(3+nrow(productivity_output)), 
+         cols = (7+(length(month_col_names)*4)+(length(year_col_names))*2):(6+(length(month_col_names)*4)+(length(year_col_names)*3)), gridExpand = TRUE)
 
-addStyle(wb, 1, varianceStyle, rows = 3, cols = (4+(length(month_col_names)*4+(length(year_col_names)*3))):(3+(length(month_col_names)*4)+(length(year_col_names)*5)))
-addStyle(wb, 1, number_format, rows = 4:(3+nrow(productivity_output)), cols = (4+(length(month_col_names)*4+(length(year_col_names)*3))):(4+(length(month_col_names)*4+(length(year_col_names)*3))), gridExpand = TRUE)
-addStyle(wb, 1, percent_format, rows = 4:(3+nrow(productivity_output)), cols = (4+(length(month_col_names)*4+(length(year_col_names)*3))+1):(4+(length(month_col_names)*4+(length(year_col_names)*3))+1), gridExpand = TRUE)
-addStyle(wb, 1, dollar_format, rows = 4:(3+nrow(productivity_output)), cols = (4+(length(month_col_names)*4+(length(year_col_names)*3))+2):(4+(length(month_col_names)*4+(length(year_col_names)*3))+2), gridExpand = TRUE)
-addStyle(wb, 1, percent_format, rows = 4:(3+nrow(productivity_output)), cols = (4+(length(month_col_names)*4+(length(year_col_names)*3))+3):(4+(length(month_col_names)*4+(length(year_col_names)*3))+3), gridExpand = TRUE)
+# Variance % Percent Change
+addStyle(wb, 1, varianceStyle, rows = 3, 
+         cols = (7+(length(month_col_names)*4+(length(year_col_names)*3))):(6+(length(month_col_names)*4)+(length(year_col_names)*5)))
+addStyle(wb, 1, number_format, rows = 4:(3+nrow(productivity_output)), 
+         cols = (7+(length(month_col_names)*4+(length(year_col_names)*3))):(7+(length(month_col_names)*4+(length(year_col_names)*3))), gridExpand = TRUE)
+addStyle(wb, 1, percent_format, rows = 4:(3+nrow(productivity_output)), 
+         cols = (7+(length(month_col_names)*4+(length(year_col_names)*3))+1):(7+(length(month_col_names)*4+(length(year_col_names)*3))+1), gridExpand = TRUE)
+addStyle(wb, 1, dollar_format, rows = 4:(3+nrow(productivity_output)), 
+         cols = (7+(length(month_col_names)*4+(length(year_col_names)*3))+2):(7+(length(month_col_names)*4+(length(year_col_names)*3))+2), gridExpand = TRUE)
+addStyle(wb, 1, percent_format, rows = 4:(3+nrow(productivity_output)), 
+         cols = (7+(length(month_col_names)*4+(length(year_col_names)*3))+3):(7+(length(month_col_names)*4+(length(year_col_names)*3))+3), gridExpand = TRUE)
 
-addStyle(wb, 1, perwRVUStyle, rows = 3, cols = (4+(length(month_col_names)*4+(length(year_col_names)*5))):(3+(length(month_col_names)*4)+(length(year_col_names)*6)))
-addStyle(wb, 1, dollar_format, rows = 4:(3+nrow(productivity_output)), cols = (4+(length(month_col_names)*4+(length(year_col_names)*5))):(3+(length(month_col_names)*4)+(length(year_col_names)*6)), gridExpand = TRUE)
 
-addStyle(wb, 1, productivityStyle, rows = 3, cols = (4+(length(month_col_names)*4+(length(year_col_names)*6))):(3+(length(month_col_names)*4)+(length(year_col_names)*7)))
+# YTD & Yearly Productivity 
+addStyle(wb, 1, productivityStyle, rows = 3, cols = (7+(length(month_col_names)*4+(length(year_col_names)*5))):(6+(length(month_col_names)*4)+(length(year_col_names)*6)))
+addStyle(wb, 1, productivityStyle, rows = 3, cols = (7+(length(month_col_names)*4+(length(year_col_names)*6))):(6+(length(month_col_names)*4)+(length(year_col_names)*7)))
+
+
+# $ per wRV
+addStyle(wb, 1, perwRVUStyle, rows = 3, cols = (7+(length(month_col_names)*4+(length(year_col_names)*7))):(6+(length(month_col_names)*4)+(length(year_col_names)*8)))
+addStyle(wb, 1, dollar_format, rows = 4:(3+nrow(productivity_output)), 
+         cols = (7+(length(month_col_names)*4+(length(year_col_names)*7))):(6+(length(month_col_names)*4)+(length(year_col_names)*8)), gridExpand = TRUE)
 
 
 #### Table Formatting 
-setColWidths(wb, 1, cols = c(1,3), widths = 40)
-setColWidths(wb, 1, cols = 4:length(productivity_output), widths = 14)
+setColWidths(wb, 1, cols = c(1), widths = 30)
+setColWidths(wb, 1, cols = c(3,5), widths = 40)
+setColWidths(wb, 1, cols = 7:length(productivity_output), widths = 14)
 
-freezePane(wb, 1, firstActiveRow = 4, firstActiveCol = 4)
+freezePane(wb, 1, firstActiveRow = 4, firstActiveCol = 7)
 
  
 addWorksheet(wb, paste0(year_col_names[length(year_col_names)], " Benchmarks"))
 writeDataTable(wb, 2, benchmark_data %>% filter(`Year Key` == year_col_names[length(year_col_names)]), startRow = 1, startCol = 1, tableStyle = "None")
 
 
-openXL(wb)
+# set zoom
+set_zoom <- function(x) gsub('(?<=zoomScale=")[0-9]+', x, sV, perl = TRUE)
+
+sV <- wb$worksheets[[1]]$sheetViews
+wb$worksheets[[1]]$sheetViews <- set_zoom(85)
+
+
+saveWorkbook(wb, "Master Productivity File Prototype.xlsx", overwrite = T)
+
+
+# openXL(wb)
 
 ```
 
 
 ```{r}
 
-getwd()
-
-library(writexl)
-write_xlsx(cpsc_data_master, paste0(getwd(),"/R Processed Productivity Data.xlsx"))
+# getwd()
+# 
+# library(writexl)
+# write_xlsx(cpsc_data_master, paste0(getwd(),"/R Processed Productivity Data.xlsx"))
 
 ```
 
