@@ -1,0 +1,611 @@
+---
+output:
+  html_document:
+    toc: no
+    toc_depth: 6
+    toc_float:
+      collapsed: yes
+    fig_width: 7
+    fig_height: 6
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+```
+
+<style type="text/css">
+div.main-container {
+  max-width: 2000px;
+  margin-left: 0;
+  margin-right: auto;
+}
+</style>
+
+<style>
+.tocify {
+color: black;
+}
+<!-- } -->
+<!-- .tocify .tocify-header { -->
+<!--     position: fixed; -->
+<!--     <!-- top: 50px; --> -->
+<!--     left: 50px; -->
+<!--     width: 350px; -->
+<!--     <!-- border: solid 3px black; --> -->
+<!--     <!-- height: 200px; --> -->
+<!--  border: none; -->
+<!-- } -->
+.tocify .tocify-header .active {
+color: white;
+background: #d80b8c;
+font-weight: bold;
+}
+<!-- .tocify .tocify-item { -->
+<!-- background: white; -->
+<!-- color: black; -->
+<!--  border: none; -->
+<!-- } -->
+</style>
+
+
+<style>
+  .nav-pills>li>a:hover, .nav-pills>li>a:focus, .nav-pills>li.active>a,     .nav-pills>li.active>a:hover, .nav-pills>li.active>a:focus{
+     background-color: #212070;
+     }
+</style>
+
+<style>
+.container { width: 1800px; }
+h2 {
+  background-color: #dddedd;
+  color: black;
+  text-indent: 20px;
+  <!-- font-weight: bold; -->
+}
+h3 {
+  background-color: #f2f2f2;
+  color: black;
+  text-indent: 20px;
+  <!-- font-weight: bold; -->
+}
+h4 {
+  <!-- background-color: #dddedd; -->
+  <!-- color: black; -->
+  text-indent: 50px;
+  <!-- font-weight: bold; -->
+}
+</style>
+
+<style>
+.blackbox {
+  padding: 1em;
+  background: white;
+  color: black;
+  border: 2px solid #7f7f7f;
+  width: 100%;
+  position: center;
+  align: center;
+  margin: 0px auto;
+}
+.center {
+  text-align: left;
+  margin: 0px auto;
+}
+</style>
+
+
+<!-- ```{css toc-content, echo = FALSE} -->
+<!-- #TOC { -->
+<!--   right: 270px; -->
+<!--   margin: 20px 0px 25px 0px; -->
+<!-- } -->
+
+<!-- .main-container { -->
+<!--     margin-left: 200px; -->
+<!-- } -->
+<!-- ``` -->
+
+
+```{r Load Packages, echo = FALSE, warning = FALSE, message = FALSE}
+# # Load packages -----------------------------------------------------------------------------------
+suppressMessages({
+  memory.limit(size = 8000000)
+  library(readxl)
+  library(writexl)
+  library(plyr)
+  library(dplyr)
+  library(data.table)
+  library(zoo)
+  library(shiny)
+  library(shinydashboard)
+  library(shinydashboardPlus)
+  library(shinyWidgets)
+  library(htmlwidgets)
+  library(lubridate)
+  library(tcltk)
+  library(tidyverse)
+  library(plotly)
+  library(knitr)
+  library(kableExtra)
+  library(leaflet)
+  library(grid)
+  library(gridExtra)
+  library(eeptools)
+  library(ggQC)
+  library(zipcodeR)
+  library(utils)
+  library(scales)
+  library(chron)
+  library(bupaR)
+  library(shiny)
+  library(DT)
+  library(DiagrammeR)
+  library(shinyalert)
+  library(edeaR)
+  library(processmapR)
+  library(processmonitR)
+  library(processanimateR)
+  library(tidyr)
+  library(lubridate)
+  library(RColorBrewer)
+  library(DiagrammeR)
+  library(ggplot2)
+  library(leaflet)
+  library(readr)
+  library(highcharter)
+  library(ggforce) # for 'geom_arc_bar'
+  library(packcircles) # for packed circle graph
+  library(viridis)
+  library(ggiraph)
+  library(treemapify)
+  library(treemap)
+  library(broom)
+  library(extrafont)
+  library(tis) # for US holidays
+  library(vroom)
+  library(sjmisc)
+  library(tools)
+  library(here)
+  library(shinyBS)
+  library(shinyscreenshot)
+  library(fasttime)
+  library(shinycssloaders)
+  library(feather)
+  # library(zipcodeR)
+  library(formattable)
+  library(shinyjs)
+  library(janitor)
+  library(patchwork)
+  library(flexdashboard)
+  # library(tidyverse)
+  # library(viridis)
+  # library(hrbrthemes)
+  # library(plotly)
+  # install.packages("bsts")
+  library(bsts)
+  library(reactable)
+  # install.packages("reactablefmtr")
+  library(reactablefmtr)
+  library(svDialogs)
+  # library(openxlsx)
+  library(flextable)
+  library(officedown)
+  library(officer)
+  library(magrittr)
+  library(webshot) 
+  library(png)
+  library(ggh4x)
+  library(RODBC)
+  library(DBI)
+  library(odbc)
+  library(dbplyr)
+  library(pool)
+  library(emojifont)
+})
+
+```
+
+
+```{r Graph asthetics, echo = FALSE, warning = FALSE, message = FALSE}
+### Color Functions for Graphs ============================================================
+# Mount Sinai corporate colors "USE THIS TO ADD COLORS"
+MountSinai_colors <- c(
+  `dark purple`  = "#212070",
+  `dark pink`    = "#d80b8c",
+  `dark blue`    = "#00aeef",
+  `dark grey`    = "#7f7f7f",
+  `yellow`       = "#ffc000",
+  `purple`       = "#7030a0",
+  `med purple`   = "#5753d0",
+  `med pink`     = "#f75dbe",
+  `med blue`     = "#5cd3ff",
+  `med grey`     = "#a5a7a5",
+  `light purple` = "#c7c6ef",
+  `light pink`   = "#fcc9e9",
+  `light blue`   = "#c9f0ff",
+  `light grey`   = "#dddedd"
+  )
+# Function to extract Mount Sinai colors as hex codes
+# Use Character names of MountSinai_colors
+MountSinai_cols <- function(...) {
+  cols <- c(...)
+  
+  if (is.null(cols))
+    return (MountSinai_colors)
+  
+  MountSinai_colors[cols]
+}
+# Color Function that can be used to call all colors is "MountSinai_cols()"
+# Use in ggplot 
+  #MountSinai_cols()       # will provide all colors and their hex codes in a table 
+  #MountSinai_cols("pink") # will provide color name and the hex code for the pink color
+# Create palettes 
+MountSinai_palettes <- list(
+  `all`   = MountSinai_cols("dark purple","dark pink","dark blue","dark grey",
+                            "med purple","med pink","med blue","med grey", 
+                            "light purple","light pink","light blue","light grey"),
+  
+  `main`  = MountSinai_cols("dark purple","dark pink","dark blue","dark grey"),
+  
+  `purple`  = MountSinai_cols("dark purple","med purple","light purple"),
+  
+  `pink`  = MountSinai_cols("dark pink","med pink","light pink"),
+  
+  `blue`  = MountSinai_cols("dark blue", "med blue", "light blue"),
+  
+  `grey`  = MountSinai_cols("dark grey", "med grey", "light grey"),
+  
+  `purpleGrey` = MountSinai_cols("dark purple", "dark grey"),
+  
+  `pinkBlue` = MountSinai_cols("dark pink", "dark blue")
+  
+)
+# MountSinai_palettes
+# Return function to interpolate a Mount Sinai color palette
+# default value is the main palette, reverse = True will change the order
+MountSinai_pal <- function(palette = "all", reverse = FALSE, ...) {
+  pal <- MountSinai_palettes[[palette]]
+  
+  if (reverse) pal <- rev(pal)
+  
+  colorRampPalette(pal, ...)
+}
+# Scale Function for ggplot can be used instead of scale_color_manual
+scale_color_MountSinai <- function(palette = "all", discrete = TRUE, reverse = FALSE, ...) {
+  pal <- MountSinai_pal(palette = palette, reverse = reverse)
+  
+  if (discrete) {
+    discrete_scale("colour", paste0("MountSinai_", palette), palette = pal, ...)
+  } else {
+    scale_color_gradientn(colours = pal(256), ...)
+  }
+}
+# Scale Fill for ggplot insetead of scale_fill_manual 
+scale_fill_MountSinai <- function(palette = "all", discrete = TRUE, reverse = FALSE, ...) {
+  pal <- MountSinai_pal(palette = palette, reverse = reverse)
+  if (discrete) {
+    discrete_scale("fill", paste0("MountSinai_", palette), palette = pal, ...)
+  } else {
+    scale_fill_gradientn(colours = pal(256), ...)
+  }
+}
+# Use in ggplot 
+  # scale_color_MountSinai("main")
+```
+
+
+```{r Global Variables, echo = FALSE, warning = FALSE, message = FALSE}
+
+'%!in%' <- function(x,y)!('%in%'(x,y))
+not_all_na <- function(x) any(!is.na(x))
+not_any_na <- function(x) all(!is.na(x))
+
+```
+
+
+```{r Data Import, echo = FALSE, warning = FALSE, message = FALSE}
+
+# Import Dummy Data ------------------------------------------------------------
+path <- "C:/Users/kweons01/Desktop/Strategic Initiatives - So Youn/Github/cfte-dashboard/"
+
+cpsc_data <- read_excel(paste0(path, "cpsc_data_sample_clean.xlsx"))
+benchmark_data <- read_excel(paste0(path, "cpsc_benchmarks_sample.xlsx"))
+collections_data <- read_excel(paste0(path, "collections_data_sample_clean.xlsx"))
+
+colnames(cpsc_data) <- str_trim(colnames(cpsc_data))
+
+colnames(collections_data) <- str_trim(colnames(collections_data))
+
+
+# Add Total Payments to CPSC Data 
+cpsc_data <- left_join(cpsc_data, 
+                   collections_data[,c("Department","Specialty","PROVIDER","NPI","Month","Total Payments")])
+
+# cpsc_data <- cpsc_data %>%
+#   filter(Department != "UNKNWON DEPT")
+
+
+```
+
+
+```{r Process CPSC Benchmark, echo = FALSE, warning = FALSE, message = FALSE}
+
+# benchmark_intervals <- benchmark_data %>%
+#   pivot_longer(P1:P100,
+#                names_to = "percentile",
+#                values_to = "lower_limit") %>%
+#   group_by(`Year Key`, `Specialty Code`, `Specialty Description`) %>%
+#   mutate(upper_limit = shift(lower_limit, type = "lead")-0.01)
+# 
+# benchmark_intervals$upper_limit[is.na(benchmark_intervals$upper_limit)] <- 1000000
+
+```
+
+
+```{r Process CPSC, echo = FALSE, warning = FALSE, message = FALSE}
+
+cpsc_data_processed <- cpsc_data %>%
+  dplyr::select(PROVIDER, NPI, Specialty, Month, Year, `Total Payments`, `Work RVUs`, `Reported CFTE`) %>%
+  group_by(PROVIDER, NPI, Specialty, Month, Year) %>%
+  summarise(`Total Payments` = sum(`Total Payments`),
+            `Work RVUs` = sum(`Work RVUs`),
+            `Reported CFTE` = sum(`Reported CFTE`)) 
+
+cpsc_data_processed <- cpsc_data_processed %>%
+  mutate(year_month = format(as.Date(Month), "%Y-%m"),
+         month = format(as.Date(Month), "%b"),
+         Month = as.numeric(format(as.Date(Month), "%m")))
+
+cpsc_data_processed <- cpsc_data_processed %>%
+  arrange(PROVIDER, NPI, Specialty, year_month) %>%
+  group_by(PROVIDER, NPI, Specialty, Year) %>%
+  mutate(worked_month_count = row_number()) %>%
+  mutate(ann_WRVUs_month = `Work RVUs`*12,
+         adj_ann_WRVUs_month = ann_WRVUs_month/`Reported CFTE`,
+         payments_per_WRVU_month = `Total Payments`/`Work RVUs`) %>%
+  group_by(PROVIDER, NPI, Specialty, Year) %>%
+  mutate(WRVUs_ytd = cumsum(`Work RVUs`),
+         payments_ytd = cumsum(`Total Payments`),
+         CFTE_ytd = round(cumsum(`Reported CFTE`)/worked_month_count,2)) %>%
+  ungroup() %>%
+  mutate(ann_WRVUs_ytd = WRVUs_ytd/worked_month_count*12,
+         adj_ann_WRVUs_ytd = ann_WRVUs_ytd/CFTE_ytd,
+         payments_per_WRVU_ytd = payments_ytd/WRVUs_ytd)
+  
+```
+
+
+```{r Merge CPSC and Benchmark Data, echo = FALSE, warning = FALSE, message = FALSE}
+
+# Merge CPSC & Benchamrk Data --------------------------------------------------
+cpsc_data_merged <- left_join(cpsc_data_processed, benchmark_data, 
+                              by = c("Year" = "Year Key",
+                                     "Specialty" = "Specialty Description"))
+
+# Match adjusted annualized month & ytd WRVUs to benchmarks --------------------
+percentile_match <- cpsc_data_merged[, c("adj_ann_WRVUs_month", "adj_ann_WRVUs_ytd", paste0("P", seq(1,100)))]
+
+percentile_match_month <- as.data.frame(apply(percentile_match %>% dplyr::select(-adj_ann_WRVUs_ytd), 1, function(x) min(tail(x,100)[tail(x,100)>=head(x,1)])))
+colnames(percentile_match_month) <- c("percentile_match_month")
+
+percentile_match_ytd <- as.data.frame(apply(percentile_match %>% dplyr::select(-adj_ann_WRVUs_month), 1, function(x) min(tail(x,100)[tail(x,100)>=head(x,1)])))
+colnames(percentile_match_ytd) <- c("percentile_match_ytd")
+
+percentile_match <- bind_cols(percentile_match, percentile_match_month)
+percentile_match <- bind_cols(percentile_match, percentile_match_ytd)
+
+percentile_match <- percentile_match %>%
+  rowwise() %>%
+  mutate(productivity_month = ifelse(is.infinite(percentile_match_month), NA, 
+                                     ifelse(is.nan(percentile_match_month), NA,
+                                            ifelse(adj_ann_WRVUs_month > P100, ">100", 
+                                                   names(.)[which(c_across(P1:P100) == percentile_match_month)+1])))) %>%
+  mutate(productivity_ytd = ifelse(is.infinite(percentile_match_ytd), NA, 
+                                     ifelse(is.nan(percentile_match_ytd), NA,
+                                            ifelse(adj_ann_WRVUs_ytd > P100, ">100", 
+                                                   names(.)[which(c_across(P1:P100) == percentile_match_ytd)+1])))) %>%
+  mutate(productivity_month = ifelse(productivity_month == "adj_ann_WRVUs_ytd", "P0", productivity_month),
+         productivity_ytd = ifelse(productivity_ytd == "adj_ann_WRVUs_ytd", "P0", productivity_ytd))
+
+
+# Master CPSC Data with Productivity Calcualtions ------------------------------
+cpsc_data_master <- bind_cols(cpsc_data_merged, percentile_match[,c("productivity_month", "productivity_ytd")])
+
+```
+
+
+```{r Map Additional Provider Details, echo = FALSE, warning = FALSE, message = FALSE}
+
+# conn1 <- dbConnect(odbc(), 
+#                    "Clarity", 
+#                     uid = "kweons01" , 
+#                     pwd = "kweons01123$")
+
+```
+
+
+```{r Format Productivity Data, echo = FALSE, warning = FALSE, message = FALSE}
+
+month_col_names <- format(as.Date(paste0(paste0(sort(unique(cpsc_data_merged$year_month)),"-01"))), "%b %y")
+year_col_names <- sort(unique(cpsc_data_merged$Year))
+
+month_output <- cpsc_data_master %>% 
+  dplyr::select(PROVIDER, NPI, Specialty, year_month, `Work RVUs`, `Total Payments`, `Reported CFTE`, productivity_month) %>%
+  arrange(year_month) %>%
+  pivot_wider(names_from = year_month,
+              values_from = c("Work RVUs", "Total Payments", "Reported CFTE", "productivity_month"))
+
+colnames(month_output) <- c("PROVIDER", "NPI", "Specialty", 
+                            paste0("wRVUs ", month_col_names), 
+                            paste0("Collections ", month_col_names),
+                            paste0("Reported CFTE ", month_col_names),
+                            paste0("Productivity ", month_col_names))
+
+
+
+ytd_output <- cpsc_data_master %>% 
+  arrange(year_month) %>%
+  group_by(PROVIDER, NPI, Specialty, Year) %>%
+  summarise(WRVUs_ytd = max(WRVUs_ytd),
+            payments_ytd = max(payments_ytd),
+            CFTE_ytd = CFTE_ytd[which.max(Month)]) %>%
+  group_by(PROVIDER, NPI, Specialty) %>%
+  mutate(WRVUs_ytd_prior = shift(WRVUs_ytd, type = "lag"),
+         payments_ytd_prior = shift(payments_ytd, type = "lag")) %>%
+  mutate(WRVUs_ytd_variance = (WRVUs_ytd - WRVUs_ytd_prior),
+         WRVUs_ytd_variance_perc = (WRVUs_ytd - WRVUs_ytd_prior)/WRVUs_ytd_prior,
+         payments_ytd_variance = (payments_ytd - payments_ytd_prior),
+         payments_ytd_variance_perc = (payments_ytd - payments_ytd_prior)/payments_ytd_prior) %>%
+  dplyr::select(-c(WRVUs_ytd_prior, payments_ytd_prior)) %>%
+  pivot_wider(names_from = Year,
+              values_from = WRVUs_ytd:payments_ytd_variance_perc) 
+ytd_output <- janitor::remove_empty(ytd_output, which = "cols")
+
+ytd_productivity_output <- cpsc_data_master %>% 
+  arrange(year_month) %>%
+  group_by(PROVIDER, NPI, Specialty, Year) %>%
+  summarise(payments_per_WRVU_ytd = payments_per_WRVU_ytd[which.max(Month)],
+            productivity_ytd = productivity_ytd[which.max(Month)]) %>%
+  group_by(PROVIDER, NPI, Specialty) %>%
+  pivot_wider(names_from = Year,
+              values_from = payments_per_WRVU_ytd:productivity_ytd) 
+
+ytd_output <- left_join(ytd_output, ytd_productivity_output)
+
+colnames(ytd_output) <- c("PROVIDER", "NPI", "Specialty", 
+                          paste0("wRVUs ", year_col_names), 
+                          paste0("Collections ", year_col_names),
+                          paste0("Reported CFTE ", year_col_names),
+                          paste0("wRVUs Variance ", year_col_names[length(year_col_names)]),
+                          paste0("wRVUs Percent Change ", year_col_names[length(year_col_names)]),
+                          paste0("Collections Variance ", year_col_names[length(year_col_names)]),
+                          paste0("Collections Percent Change ", year_col_names[length(year_col_names)]),
+                          paste0(year_col_names, " $ per wRVU"),
+                          paste0(year_col_names, " Productivity"))
+
+productivity_output <- left_join(month_output, ytd_output)
+productivity_output <- productivity_output %>%
+  mutate(across(where(is.list), as.character))
+
+# Convert any NULL, FINITE, NAN to NA (e.g. providers with wRVUs but no CFTE assigned)
+productivity_output[productivity_output == "NULL"] <- NA
+productivity_output <- productivity_output %>%
+  mutate_all(~replace(., is.nan(.), NA),
+             ~replace(., is.finite(.), NA))
+
+```
+
+
+
+
+
+
+
+
+
+
+```{r Excel Export, echo = FALSE, warning = FALSE, message = FALSE}
+
+library(openxlsx)
+
+## Format columns as numeric for number formatting in Excel
+productivity_output <- productivity_output %>%
+   mutate(across(matches('wRVUs|Collections|Reported'), ~as.numeric(.)))
+
+
+## create a workbook and add a worksheet
+wb <- createWorkbook()
+addWorksheet(wb, paste0("Master Prod (", month_col_names[length(month_col_names)], ")"))
+
+
+## Title Section
+wb_title <- paste0("Master Physician Productivity Data ", month_col_names[1], " - ",  month_col_names[length(month_col_names)])
+
+titleStyle <- createStyle(fontSize = 16,
+                          textDecoration = c("bold", "italic"), 
+                          valign = "center")
+
+writeData(wb, 1, wb_title, startRow = 1, startCol = 1)
+addStyle(wb, 1, titleStyle, rows = 1, cols = 1)
+
+
+## Data Section
+### Formatting Style 
+provStyle <- createStyle(fgFill = "#dddedd", textDecoration = "bold", wrapText = TRUE)
+wRVUsStyle <- createStyle(fgFill = "#00aeef", fontColour  = "#FFFFFF", textDecoration = "bold", wrapText = TRUE)
+collectionsStyle <- createStyle(fgFill = "#d80b8c", fontColour  = "#FFFFFF", textDecoration = "bold", wrapText = TRUE)
+cfteStyle <- createStyle(fgFill = "#7030a0", fontColour  = "#FFFFFF", textDecoration = "bold", wrapText = TRUE)
+productivityStyle <- createStyle(fgFill = "#212070", fontColour  = "#FFFFFF", textDecoration = "bold", wrapText = TRUE)
+varianceStyle <- createStyle(fgFill = "#ffc000", fontColour  = "#000000", textDecoration = "bold", wrapText = TRUE)
+perwRVUStyle <- createStyle(fgFill = "#a5a7a5", fontColour  = "#FFFFFF", textDecoration = "bold", wrapText = TRUE)
+
+number_format = createStyle(numFmt="#,##0.00")
+decimal_format = createStyle(numFmt="0.00")
+dollar_format = createStyle(numFmt="$#,##0.00")
+percent_format = createStyle(numFmt="%#,##0")
+
+
+### Data Output 
+writeDataTable(wb, 1, productivity_output, startRow = 3, startCol = 1, tableStyle = "None")
+
+addStyle(wb, 1, provStyle, rows = 3, cols = 1:3)
+
+#### Monthly Data Section
+addStyle(wb, 1, wRVUsStyle, rows = 3, cols = 4:(3+length(month_col_names)))
+addStyle(wb, 1, number_format, rows = 4:(3+nrow(productivity_output)), cols = 4:(3+length(month_col_names)), gridExpand = TRUE)
+
+addStyle(wb, 1, collectionsStyle, rows = 3, cols = (4+length(month_col_names)):(3+(length(month_col_names)*2)))
+addStyle(wb, 1, dollar_format, rows = 4:(3+nrow(productivity_output)), cols = (4+length(month_col_names)):(3+(length(month_col_names)*2)), gridExpand = TRUE)
+
+addStyle(wb, 1, cfteStyle, rows = 3, cols = (4+(length(month_col_names)*2)):(3+(length(month_col_names)*3)))
+addStyle(wb, 1, decimal_format, rows = 4:(3+nrow(productivity_output)), cols = (4+(length(month_col_names)*2)):(3+(length(month_col_names)*3)), gridExpand = TRUE)
+
+addStyle(wb, 1, productivityStyle, rows = 3, cols = (4+(length(month_col_names)*3)):(3+(length(month_col_names)*4)))
+
+#### Yearly Data Section
+addStyle(wb, 1, wRVUsStyle, rows = 3, cols = (4+(length(month_col_names)*4)):(3+(length(month_col_names)*4)+(length(year_col_names))))
+addStyle(wb, 1, number_format, rows = 4:(3+nrow(productivity_output)), cols = (4+(length(month_col_names)*4)):(3+(length(month_col_names)*4)+(length(year_col_names))), gridExpand = TRUE)
+
+addStyle(wb, 1, collectionsStyle, rows = 3, cols = (4+(length(month_col_names)*4)+(length(year_col_names))):(3+(length(month_col_names)*4)+(length(year_col_names)*2)))
+addStyle(wb, 1, dollar_format, rows = 4:(3+nrow(productivity_output)), cols = (4+(length(month_col_names)*4)+(length(year_col_names))):(3+(length(month_col_names)*4)+(length(year_col_names)*2)), gridExpand = TRUE)
+
+addStyle(wb, 1, cfteStyle, rows = 3, cols = (4+(length(month_col_names)*4)+(length(year_col_names))*2):(3+(length(month_col_names)*4)+(length(year_col_names)*3)))
+addStyle(wb, 1, decimal_format, rows = 4:(3+nrow(productivity_output)), cols = (4+(length(month_col_names)*4)+(length(year_col_names))*2):(3+(length(month_col_names)*4)+(length(year_col_names)*3)), gridExpand = TRUE)
+
+addStyle(wb, 1, varianceStyle, rows = 3, cols = (4+(length(month_col_names)*4+(length(year_col_names)*3))):(3+(length(month_col_names)*4)+(length(year_col_names)*5)))
+addStyle(wb, 1, number_format, rows = 4:(3+nrow(productivity_output)), cols = (4+(length(month_col_names)*4+(length(year_col_names)*3))):(4+(length(month_col_names)*4+(length(year_col_names)*3))), gridExpand = TRUE)
+addStyle(wb, 1, percent_format, rows = 4:(3+nrow(productivity_output)), cols = (4+(length(month_col_names)*4+(length(year_col_names)*3))+1):(4+(length(month_col_names)*4+(length(year_col_names)*3))+1), gridExpand = TRUE)
+addStyle(wb, 1, dollar_format, rows = 4:(3+nrow(productivity_output)), cols = (4+(length(month_col_names)*4+(length(year_col_names)*3))+2):(4+(length(month_col_names)*4+(length(year_col_names)*3))+2), gridExpand = TRUE)
+addStyle(wb, 1, percent_format, rows = 4:(3+nrow(productivity_output)), cols = (4+(length(month_col_names)*4+(length(year_col_names)*3))+3):(4+(length(month_col_names)*4+(length(year_col_names)*3))+3), gridExpand = TRUE)
+
+addStyle(wb, 1, perwRVUStyle, rows = 3, cols = (4+(length(month_col_names)*4+(length(year_col_names)*5))):(3+(length(month_col_names)*4)+(length(year_col_names)*6)))
+addStyle(wb, 1, dollar_format, rows = 4:(3+nrow(productivity_output)), cols = (4+(length(month_col_names)*4+(length(year_col_names)*5))):(3+(length(month_col_names)*4)+(length(year_col_names)*6)), gridExpand = TRUE)
+
+addStyle(wb, 1, productivityStyle, rows = 3, cols = (4+(length(month_col_names)*4+(length(year_col_names)*6))):(3+(length(month_col_names)*4)+(length(year_col_names)*7)))
+
+
+#### Table Formatting 
+setColWidths(wb, 1, cols = c(1,3), widths = 40)
+setColWidths(wb, 1, cols = 4:length(productivity_output), widths = 14)
+
+freezePane(wb, 1, firstActiveRow = 4, firstActiveCol = 4)
+
+ 
+addWorksheet(wb, paste0(year_col_names[length(year_col_names)], " Benchmarks"))
+writeDataTable(wb, 2, benchmark_data %>% filter(`Year Key` == year_col_names[length(year_col_names)]), startRow = 1, startCol = 1, tableStyle = "None")
+
+
+openXL(wb)
+
+```
+
+
+```{r}
+
+getwd()
+
+library(writexl)
+write_xlsx(cpsc_data_master, paste0(getwd(),"/R Processed Productivity Data.xlsx"))
+
+```
+
